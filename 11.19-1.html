@@ -1,0 +1,959 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>听力生成器 · 大题/小题 + 角色对话 + MP3 导出</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI','Microsoft YaHei',system-ui,sans-serif; background: linear-gradient(135deg,#eef4ff,#f7f9fc); min-height:100vh; padding:1.5rem; color:#1e293b; }
+  .wrap { max-width:1120px; margin:0 auto; }
+  .card { background:#fff; border-radius:2rem; box-shadow:0 25px 60px -20px rgba(30,41,59,.25); padding:2rem; border:1px solid #e6edf6; }
+  h1 { font-size:1.6rem; font-weight:650; display:flex; align-items:center; gap:.6rem; margin-bottom:.4rem; }
+  h1 .badge { background:#3b82f6; color:#fff; font-size:.75rem; font-weight:500; padding:.2rem .7rem; border-radius:100px; }
+  .subtitle { color:#64748b; font-size:.9rem; margin-bottom:1.4rem; }
+
+  .toolbar { display:flex; flex-wrap:wrap; gap:.7rem; margin-bottom:1.4rem; align-items:center; }
+  .btn { border:none; padding:.7rem 1.4rem; border-radius:60px; font-weight:600; font-size:.92rem; display:inline-flex; align-items:center; justify-content:center; gap:.45rem; cursor:pointer; transition:.15s; font-family:inherit; white-space:nowrap; }
+  .btn:active { transform:scale(.97); }
+  .btn:disabled { opacity:.45; cursor:not-allowed; }
+  .btn-primary { background:#3b82f6; color:#fff; box-shadow:0 8px 18px -8px rgba(59,130,246,.55); }
+  .btn-primary:hover:not(:disabled) { background:#2563eb; }
+  .btn-secondary { background:#fff; color:#1e293b; border:1px solid #cbd5e1; }
+  .btn-secondary:hover:not(:disabled) { background:#f1f5f9; }
+  .btn-danger { background:#fee2e2; color:#b91c1c; border:1px solid #fecaca; }
+  .btn-danger:hover:not(:disabled) { background:#fecaca; }
+  .btn-play { background:#059669; color:#fff; box-shadow:0 8px 18px -8px rgba(5,150,105,.5); }
+  .btn-play:hover:not(:disabled) { background:#047857; }
+  .btn-record { background:#dc2626; color:#fff; box-shadow:0 8px 18px -8px rgba(220,38,38,.5); }
+  .btn-record:hover:not(:disabled) { background:#b91c1c; }
+  .btn-record.recording { background:#991b1b; animation:pulseRec 1.4s infinite; }
+  @keyframes pulseRec { 0%,100%{box-shadow:0 0 0 0 rgba(220,38,38,.5);} 50%{box-shadow:0 0 0 8px rgba(220,38,38,0);} }
+  .btn-small { padding:.42rem .85rem; font-size:.8rem; }
+
+  .voice-bar { display:flex; flex-wrap:wrap; gap:1rem; align-items:flex-end; background:#f8fafd; padding:1rem 1.3rem; border-radius:1.5rem; border:1px solid #e9eff7; margin-bottom:1.4rem; }
+  .voice-bar .control-group { flex:1 1 200px; min-width:170px; }
+  .control-group label { display:block; font-weight:500; font-size:.84rem; color:#334155; margin-bottom:.3rem; }
+  select, input[type=number], input[type=text], textarea { width:100%; padding:.6rem .9rem; border-radius:.9rem; border:2px solid #e2e8f0; background:#fff; font-size:.9rem; font-family:inherit; color:#0f172a; transition:.15s; }
+  textarea { line-height:1.6; resize:vertical; min-height:70px; }
+  select:focus, input:focus, textarea:focus { outline:none; border-color:#3b82f6; box-shadow:0 0 0 3px rgba(59,130,246,.12); }
+  input[type=number] { -moz-appearance:textfield; }
+  input[type=number]::-webkit-outer-spin-button, input[type=number]::-webkit-inner-spin-button { -webkit-appearance:none; }
+
+  .section-block { background:#f8fafd; border:1px solid #e2e8f0; border-radius:1.6rem; padding:1.3rem 1.4rem; margin-bottom:1.4rem; }
+  .section-head { display:flex; align-items:center; gap:.7rem; margin-bottom:1rem; flex-wrap:wrap; }
+  .section-badge { background:#3b82f6; color:#fff; font-weight:700; font-size:.85rem; padding:.3rem .85rem; border-radius:40px; flex-shrink:0; }
+  .section-title-input { flex:1; min-width:160px; font-weight:600; font-size:1rem; }
+  .section-actions { display:flex; gap:.4rem; flex-shrink:0; }
+  .icon-btn { width:2rem; height:2rem; border-radius:50%; border:none; background:#fff; color:#64748b; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:.95rem; border:1px solid #e2e8f0; transition:.15s; }
+  .icon-btn:hover { background:#f1f5f9; color:#1e293b; }
+  .icon-btn.del:hover { background:#fee2e2; color:#b91c1c; border-color:#fecaca; }
+
+  .section-meta { display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:.8rem; margin-bottom:1rem; }
+  .section-meta .control-group { min-width:0; }
+  .section-meta .full { grid-column:1 / -1; }
+
+  .sub-list { display:flex; flex-direction:column; gap:.9rem; }
+  .sub-card { background:#fff; border:1px solid #e2e8f0; border-radius:1.2rem; padding:1rem 1.1rem; }
+  .sub-head { display:flex; align-items:center; gap:.5rem; margin-bottom:.7rem; }
+  .sub-num { font-size:.78rem; font-weight:600; color:#3b82f6; background:#eff6ff; padding:.2rem .65rem; border-radius:40px; flex-shrink:0; }
+  .sub-title-input { flex:1; font-size:.92rem; }
+  .sub-body { display:flex; flex-direction:column; gap:.65rem; }
+  .role-row { display:flex; gap:.6rem; align-items:flex-start; }
+  .role-select { width:110px; flex-shrink:0; padding:.5rem .6rem; font-size:.85rem; }
+  .role-text { flex:1; }
+  .role-text textarea { min-height:56px; padding:.55rem .8rem; font-size:.9rem; }
+  .add-role-btn { align-self:flex-start; font-size:.8rem; padding:.35rem .9rem; }
+  .remove-role { width:1.9rem; height:1.9rem; flex-shrink:0; margin-top:.3rem; }
+
+  .empty-hint { text-align:center; color:#94a3b8; padding:2rem; font-size:.95rem; border:2px dashed #e2e8f0; border-radius:1.4rem; }
+
+  .status { font-size:.88rem; color:#475569; background:#eef2f7; padding:.5rem 1.2rem; border-radius:40px; display:inline-flex; align-items:center; gap:.5rem; white-space:nowrap; }
+  .dot { width:8px; height:8px; border-radius:50%; background:#94a3b8; }
+  .dot.active { background:#22c55e; box-shadow:0 0 8px #22c55e; animation:pulseDot 1.4s infinite; }
+  .dot.rec { background:#ef4444; box-shadow:0 0 8px #ef4444; animation:pulseDot 1s infinite; }
+  @keyframes pulseDot { 0%,100%{opacity:1;} 50%{opacity:.4;} }
+
+  .rec-panel { background:#fff7ed; border:1px solid #fed7aa; border-radius:1.4rem; padding:1.2rem 1.4rem; margin-top:1.4rem; }
+  .rec-panel h3 { font-size:1rem; font-weight:650; color:#9a3412; margin-bottom:.6rem; }
+  .rec-panel ol { margin:0 0 .9rem 1.2rem; color:#7c2d12; font-size:.9rem; line-height:1.9; }
+  .rec-panel ol strong { color:#c2410c; }
+  .rec-panel .hint { font-size:.85rem; color:#9a3412; background:#ffedd5; padding:.6rem .9rem; border-radius:.9rem; line-height:1.6; }
+  .download-area { margin-top:.8rem; display:none; }
+  .download-area.show { display:block; }
+  .download-row { display:flex; flex-wrap:wrap; gap:.8rem; margin-top:.6rem; }
+  .download-link { display:inline-flex; align-items:center; gap:.5rem; background:#ecfdf5; color:#047857; border:1px solid #a7f3d0; padding:.7rem 1.3rem; border-radius:60px; font-weight:600; font-size:.92rem; text-decoration:none; transition:.15s; }
+  .download-link:hover { background:#d1fae5; }
+  .download-link.mp3 { background:#eff6ff; color:#1d4ed8; border-color:#bfdbfe; }
+  .download-link.mp3:hover { background:#dbeafe; }
+  .file-info { font-size:.82rem; color:#64748b; margin-top:.5rem; }
+
+  .toast { position:fixed; bottom:2rem; left:50%; transform:translateX(-50%) translateY(120%); background:#1e293b; color:#fff; padding:.8rem 1.6rem; border-radius:60px; font-size:.9rem; box-shadow:0 12px 30px rgba(0,0,0,.25); transition:transform .3s cubic-bezier(.2,.9,.3,1.2); z-index:999; max-width:90vw; text-align:center; }
+  .toast.show { transform:translateX(-50%) translateY(0); }
+  .toast.error { background:#b91c1c; }
+  .toast.success { background:#047857; }
+
+  @media (max-width:820px) { .section-meta { grid-template-columns:1fr 1fr; } }
+  @media (max-width:560px) { .section-meta { grid-template-columns:1fr; } .card { padding:1.3rem; } .role-row { flex-wrap:wrap; } .role-select { width:100%; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <h1>🎧 听力生成器 <span class="badge">大题/小题 · 角色对话 · MP3 导出</span></h1>
+    <div class="subtitle">大题统一设置题干、重复次数与等待时间；小题内可按“男/女”角色分段朗读；支持录制导出 webm 并自动转 MP3。</div>
+
+    <div class="voice-bar">
+      <div class="control-group">
+        <label for="voiceMale">👨 男声音色</label>
+        <select id="voiceMale"><option value="">加载中…</option></select>
+      </div>
+      <div class="control-group">
+        <label for="voiceFemale">👩 女声音色</label>
+        <select id="voiceFemale"><option value="">加载中…</option></select>
+      </div>
+      <div class="control-group">
+        <label for="globalRate">⚡ 全局语速</label>
+        <input type="number" id="globalRate" min="0.5" max="2" step="0.1" value="1.0">
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <button class="btn btn-primary" id="addSectionBtn">➕ 添加大题</button>
+      <button class="btn btn-secondary" id="addPresetBtn">📋 添加示例听力</button>
+      <button class="btn btn-play" id="playAllBtn">▶ 播放全部听力</button>
+      <button class="btn btn-danger" id="stopBtn" disabled>⏹ 停止播放</button>
+      <span class="status" id="statusIndicator" style="margin-left:auto;">
+        <span class="dot" id="statusDot"></span>
+        <span id="statusText">就绪</span>
+      </span>
+    </div>
+
+    <div id="sectionList"></div>
+    <div class="empty-hint" id="emptyHint">还没有大题，点击“添加大题”或“添加示例听力”开始。</div>
+
+    <div class="rec-panel">
+      <h3>🎧 录制导出（自动转 MP3）</h3>
+      <ol>
+        <li>点击 <strong>“开始录制并播放”</strong>。</li>
+        <li>共享弹窗中选 <strong>“整个屏幕”</strong>（不要选单个窗口）。</li>
+        <li><strong>务必勾选“分享系统音频”</strong>（默认不勾选）。</li>
+        <li>听力播放结束后自动停止录制，并转换 MP3。</li>
+      </ol>
+      <div class="hint">转换在浏览器本地完成，不上传任何音频。MP3 生成后会出现下载链接。录制的是系统正在播放的声音，录制期间请勿播放其他音频。</div>
+      <div class="btn-row" style="margin-top:1rem; display:flex; gap:.8rem; flex-wrap:wrap;">
+        <button class="btn btn-record" id="recordBtn">⏺ 开始录制并播放</button>
+        <button class="btn btn-secondary" id="stopRecordBtn" style="display:none;">⏹ 停止录制</button>
+      </div>
+      <div class="download-area" id="downloadArea">
+        <div class="file-info" id="fileInfo"></div>
+        <div class="download-row">
+          <a class="download-link" id="downloadWebm" download="listening.webm">⬇ 下载 WebM 原文件</a>
+          <a class="download-link mp3" id="downloadMp3" download="listening.mp3">⬇ 下载 MP3</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/lamejs@1.2.1/lame.min.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  // ---------- DOM ----------
+  const voiceMaleSelect = document.getElementById('voiceMale');
+  const voiceFemaleSelect = document.getElementById('voiceFemale');
+  const globalRateInput = document.getElementById('globalRate');
+  const addSectionBtn = document.getElementById('addSectionBtn');
+  const addPresetBtn = document.getElementById('addPresetBtn');
+  const playAllBtn = document.getElementById('playAllBtn');
+  const stopBtn = document.getElementById('stopBtn');
+  const sectionList = document.getElementById('sectionList');
+  const emptyHint = document.getElementById('emptyHint');
+  const statusDot = document.getElementById('statusDot');
+  const statusText = document.getElementById('statusText');
+  const toastEl = document.getElementById('toast');
+
+  const recordBtn = document.getElementById('recordBtn');
+  const stopRecordBtn = document.getElementById('stopRecordBtn');
+  const downloadArea = document.getElementById('downloadArea');
+  const downloadWebm = document.getElementById('downloadWebm');
+  const downloadMp3 = document.getElementById('downloadMp3');
+  const fileInfo = document.getElementById('fileInfo');
+
+  const synth = window.speechSynthesis;
+
+  // 自定义提示音 URL（请确认该地址可公开访问、跨域允许）
+  const CUSTOM_MUSIC_URL = 'https://sorazorashii.github.io/webtts/11月19日.mp3';
+
+  // ---------- 状态 ----------
+  let voices = [];
+  let sections = [];
+  let isPlaying = false;
+  let playbackToken = 0;
+  let currentUtterance = null;
+  let audioCtx = null;
+
+  let mediaRecorder = null, recordedChunks = [], recordStream = null;
+  let isRecording = false, recordStartTime = 0;
+  let mp3Converting = false;
+
+  // 自定义音频元素缓存（用于预加载和复用）
+  let customAudio = null;
+  let customAudioReady = false;
+
+  // ---------- Toast ----------
+  let toastTimer = null;
+  function showToast(msg, type = '') {
+    clearTimeout(toastTimer);
+    toastEl.textContent = msg;
+    toastEl.className = 'toast show ' + type;
+    toastTimer = setTimeout(() => toastEl.classList.remove('show'), 3000);
+  }
+  function setStatus(text, active = false, rec = false) {
+    statusText.textContent = text;
+    statusDot.className = 'dot';
+    if (active) statusDot.classList.add('active');
+    if (rec) statusDot.classList.add('rec');
+  }
+
+  // ---------- 预加载自定义提示音 ----------
+  function preloadCustomMusic() {
+    if (customAudio) return;
+    customAudio = new Audio();
+    customAudio.src = CUSTOM_MUSIC_URL;
+    customAudio.preload = 'auto';
+    customAudio.crossOrigin = 'anonymous'; // 如果服务器允许，可避免某些跨域问题
+    customAudio.addEventListener('canplaythrough', () => {
+      customAudioReady = true;
+      console.log('[提示音] 预加载完成');
+    });
+    customAudio.addEventListener('error', (e) => {
+      console.warn('[提示音] 加载失败，将尝试直接播放:', e);
+    });
+    customAudio.load();
+  }
+
+  // 播放自定义音乐，次数 times，返回 Promise，可被 token 中断
+  function playCustomMusic(times = 1, token) {
+    return new Promise((resolve, reject) => {
+      if (!customAudio) preloadCustomMusic();
+
+      let playCount = 0;
+
+      function playOnce() {
+        if (playbackToken !== token) { reject(new Error('interrupted')); return; }
+        if (playCount >= times) { resolve(); return; }
+
+        // 重置播放位置
+        try {
+          customAudio.currentTime = 0;
+        } catch (_) {}
+
+        const onEnded = () => {
+          customAudio.removeEventListener('ended', onEnded);
+          customAudio.removeEventListener('error', onError);
+          playCount++;
+          if (playCount < times) {
+            // 简短间隔再播下一遍
+            setTimeout(() => {
+              if (playbackToken !== token) { reject(new Error('interrupted')); return; }
+              playOnce();
+            }, 200);
+          } else {
+            resolve();
+          }
+        };
+
+        const onError = (e) => {
+          customAudio.removeEventListener('ended', onEnded);
+          customAudio.removeEventListener('error', onError);
+          reject(new Error('自定义音频播放失败: ' + (e.message || '未知错误')));
+        };
+
+        customAudio.addEventListener('ended', onEnded);
+        customAudio.addEventListener('error', onError);
+
+        const p = customAudio.play();
+        if (p && typeof p.catch === 'function') {
+          p.catch(err => {
+            customAudio.removeEventListener('ended', onEnded);
+            customAudio.removeEventListener('error', onError);
+            reject(new Error('播放被阻止: ' + err.message));
+          });
+        }
+      }
+
+      // 中断检测
+      const check = setInterval(() => {
+        if (playbackToken !== token) {
+          clearInterval(check);
+          try { customAudio.pause(); } catch (_) {}
+          reject(new Error('interrupted'));
+        }
+      }, 100);
+
+      const origResolve = resolve;
+      const origReject = reject;
+      resolve = (v) => { clearInterval(check); origResolve(v); };
+      reject = (e) => { clearInterval(check); origReject(e); };
+
+      playOnce();
+    });
+  }
+
+  // 停止自定义音频（中断时调用）
+  function stopCustomAudio() {
+    if (customAudio) {
+      try {
+        customAudio.pause();
+        customAudio.currentTime = 0;
+      } catch (_) {}
+    }
+  }
+
+  // ---------- 语音加载 ----------
+  function loadVoices() {
+    if (!synth) return;
+    voices = synth.getVoices();
+    if (!voices.length) return;
+    const sorted = [...voices].sort((a, b) => {
+      const aZh = a.lang && a.lang.toLowerCase().startsWith('zh') ? 0 : 1;
+      const bZh = b.lang && b.lang.toLowerCase().startsWith('zh') ? 0 : 1;
+      if (aZh !== bZh) return aZh - bZh;
+      return a.name.localeCompare(b.name);
+    });
+    fillVoiceSelect(voiceMaleSelect, sorted, 'male');
+    fillVoiceSelect(voiceFemaleSelect, sorted, 'female');
+  }
+  function fillVoiceSelect(selectEl, sorted, gender) {
+    const current = selectEl.value;
+    selectEl.innerHTML = '';
+    sorted.forEach(v => {
+      const opt = document.createElement('option');
+      opt.value = v.name;
+      opt.textContent = `${v.name} (${v.lang})${/Natural|Online/i.test(v.name) ? ' ⭐' : ''}`;
+      selectEl.appendChild(opt);
+    });
+    let pick = null;
+    if (gender === 'male') {
+      pick = sorted.find(v => /Yunxi|Yunyang|Guy|Yunjian/i.test(v.name) && v.lang.toLowerCase().startsWith('zh'))
+          || sorted.find(v => /Yunxi|Yunyang|Guy|Yunjian/i.test(v.name))
+          || sorted.find(v => v.lang.toLowerCase().startsWith('zh')) || sorted[0];
+    } else {
+      pick = sorted.find(v => /Xiaoxiao|Xiaoyi|Aria|Jenny/i.test(v.name) && v.lang.toLowerCase().startsWith('zh'))
+          || sorted.find(v => /Xiaoxiao|Xiaoyi|Aria|Jenny/i.test(v.name))
+          || sorted.find(v => v.lang.toLowerCase().startsWith('zh')) || sorted[0];
+    }
+    if (pick) selectEl.value = pick.name;
+    if (current && [...selectEl.options].some(o => o.value === current)) selectEl.value = current;
+  }
+  function getVoiceByName(name) {
+    return voices.find(v => v.name === name) || null;
+  }
+  if (synth) {
+    loadVoices();
+    synth.onvoiceschanged = loadVoices;
+    setTimeout(loadVoices, 500);
+    setTimeout(loadVoices, 1500);
+  } else {
+    showToast('浏览器不支持语音合成', 'error');
+    playAllBtn.disabled = true;
+    recordBtn.disabled = true;
+  }
+
+  // ---------- 音频工具（滴声） ----------
+  function getAudioCtx() {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    return audioCtx;
+  }
+  function playBeep(duration = 0.12, freq = 1000, volume = 0.35) {
+    return new Promise(resolve => {
+      try {
+        const ctx = getAudioCtx();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(volume, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.start(); osc.stop(ctx.currentTime + duration);
+        osc.onended = () => resolve();
+        setTimeout(resolve, duration * 1000 + 30);
+      } catch (e) { resolve(); }
+    });
+  }
+
+  function wait(ms, token) {
+    return new Promise((resolve, reject) => {
+      const start = Date.now();
+      const tick = () => {
+        if (playbackToken !== token) { reject(new Error('interrupted')); return; }
+        if (Date.now() - start >= ms) { resolve(); return; }
+        setTimeout(tick, 50);
+      };
+      tick();
+    });
+  }
+
+  function speakText(text, { voiceName, rate, token }) {
+    return new Promise((resolve, reject) => {
+      if (playbackToken !== token) { reject(new Error('interrupted')); return; }
+      if (!text || !text.trim()) { resolve(); return; }
+
+      const u = new SpeechSynthesisUtterance(text);
+      const voice = getVoiceByName(voiceName) || voices.find(v => v.lang.toLowerCase().startsWith('zh')) || voices[0];
+      if (voice) { u.voice = voice; u.lang = voice.lang; }
+      u.rate = rate; u.pitch = 1; u.volume = 1;
+
+      let settled = false;
+      const finish = (err) => {
+        if (settled) return;
+        settled = true;
+        clearInterval(check);
+        currentUtterance = null;
+        if (err) reject(err); else resolve();
+      };
+      const check = setInterval(() => {
+        if (playbackToken !== token) {
+          try { synth.cancel(); } catch (_) {}
+          finish(new Error('interrupted'));
+        }
+      }, 100);
+
+      u.onend = () => finish();
+      u.onerror = (e) => {
+        if (e.error === 'interrupted' || e.error === 'canceled') finish(new Error('interrupted'));
+        else finish(new Error('speech error: ' + e.error));
+      };
+
+      currentUtterance = u;
+      synth.speak(u);
+    });
+  }
+
+  // ---------- 数据模型 ----------
+  function createSection(data = {}) {
+    return {
+      id: 'sec_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+      title: data.title || '',
+      prompt: data.prompt || '',
+      repeat: data.repeat != null ? data.repeat : 1,
+      waitAfter: data.waitAfter != null ? data.waitAfter : 3,
+      subs: data.subs ? data.subs.map(s => createSub(s)) : []
+    };
+  }
+  function createSub(data = {}) {
+    return {
+      id: 'sub_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+      title: data.title || '',
+      roles: data.roles ? data.roles.map(r => ({ gender: r.gender || 'female', text: r.text || '' }))
+                        : [{ gender: 'female', text: '' }]
+    };
+  }
+
+  // ---------- 渲染 ----------
+  function renderAll() {
+    sectionList.innerHTML = '';
+    if (sections.length === 0) {
+      emptyHint.style.display = '';
+      return;
+    }
+    emptyHint.style.display = 'none';
+    sections.forEach((sec, si) => sectionList.appendChild(renderSection(sec, si)));
+  }
+
+  function renderSection(sec, si) {
+    const block = document.createElement('div');
+    block.className = 'section-block';
+    block.dataset.id = sec.id;
+    block.innerHTML = `
+      <div class="section-head">
+        <span class="section-badge">大题 ${si + 1}</span>
+        <input type="text" class="section-title-input" placeholder="大题名称（如：Part A）" value="${escAttr(sec.title)}">
+        <div class="section-actions">
+          <button class="icon-btn sec-up" title="上移">↑</button>
+          <button class="icon-btn sec-down" title="下移">↓</button>
+          <button class="icon-btn del sec-del" title="删除大题">✕</button>
+        </div>
+      </div>
+      <div class="section-meta">
+        <div class="control-group full">
+          <label>📢 总题干（大题下所有小题朗读前读一次，留空则不读）</label>
+          <textarea class="sec-prompt" placeholder="例如：Listen to the following conversations and choose the best answer.">${escHtml(sec.prompt)}</textarea>
+        </div>
+        <div class="control-group">
+          <label>🔁 小题重复遍数</label>
+          <input type="number" class="sec-repeat" min="1" max="10" value="${sec.repeat}">
+        </div>
+        <div class="control-group">
+          <label>⏳ 小题后等待(秒)</label>
+          <input type="number" class="sec-wait" min="0" max="60" step="0.5" value="${sec.waitAfter}">
+        </div>
+      </div>
+      <div class="sub-list" data-sublist></div>
+      <button class="btn btn-secondary btn-small add-sub-btn">➕ 添加小题</button>
+    `;
+
+    block.querySelector('.section-title-input').addEventListener('input', e => { sec.title = e.target.value; });
+    block.querySelector('.sec-prompt').addEventListener('input', e => { sec.prompt = e.target.value; });
+    block.querySelector('.sec-repeat').addEventListener('input', e => {
+      let v = parseInt(e.target.value, 10); if (isNaN(v) || v < 1) v = 1; if (v > 10) v = 10; sec.repeat = v;
+    });
+    block.querySelector('.sec-wait').addEventListener('input', e => {
+      let v = parseFloat(e.target.value); if (isNaN(v) || v < 0) v = 0; if (v > 60) v = 60; sec.waitAfter = v;
+    });
+
+    block.querySelector('.sec-up').addEventListener('click', () => { if (si > 0) { [sections[si-1], sections[si]] = [sections[si], sections[si-1]]; renderAll(); } });
+    block.querySelector('.sec-down').addEventListener('click', () => { if (si < sections.length - 1) { [sections[si+1], sections[si]] = [sections[si], sections[si+1]]; renderAll(); } });
+    block.querySelector('.sec-del').addEventListener('click', () => { sections.splice(si, 1); renderAll(); });
+
+    const subList = block.querySelector('[data-sublist]');
+    sec.subs.forEach((sub, bi) => subList.appendChild(renderSub(sub, sec, bi)));
+
+    block.querySelector('.add-sub-btn').addEventListener('click', () => {
+      sec.subs.push(createSub());
+      renderAll();
+    });
+
+    return block;
+  }
+
+  function renderSub(sub, sec, bi) {
+    const card = document.createElement('div');
+    card.className = 'sub-card';
+    card.dataset.id = sub.id;
+
+    let rolesHtml = '';
+    sub.roles.forEach((role, ri) => {
+      rolesHtml += `
+        <div class="role-row" data-roleindex="${ri}">
+          <select class="role-select">
+            <option value="female" ${role.gender === 'female' ? 'selected' : ''}>👩 女声</option>
+            <option value="male" ${role.gender === 'male' ? 'selected' : ''}>👨 男声</option>
+          </select>
+          <div class="role-text">
+            <textarea class="role-textarea" placeholder="此角色朗读的文本……">${escHtml(role.text)}</textarea>
+          </div>
+          <button class="icon-btn del remove-role" title="删除此段">✕</button>
+        </div>
+      `;
+    });
+
+    card.innerHTML = `
+      <div class="sub-head">
+        <span class="sub-num">小题 ${bi + 1}</span>
+        <input type="text" class="sub-title-input" placeholder="小题名称（可选，如 Question 1）" value="${escAttr(sub.title)}">
+        <div class="section-actions">
+          <button class="icon-btn sub-del" title="删除小题">✕</button>
+        </div>
+      </div>
+      <div class="sub-body">${rolesHtml}</div>
+      <button class="btn btn-secondary btn-small add-role-btn">➕ 添加角色段</button>
+    `;
+
+    card.querySelector('.sub-title-input').addEventListener('input', e => { sub.title = e.target.value; });
+
+    card.querySelectorAll('.role-row').forEach((row, ri) => {
+      const sel = row.querySelector('.role-select');
+      const ta = row.querySelector('.role-textarea');
+      sel.addEventListener('change', e => { sub.roles[ri].gender = e.target.value; });
+      ta.addEventListener('input', e => { sub.roles[ri].text = e.target.value; });
+      row.querySelector('.remove-role').addEventListener('click', () => {
+        if (sub.roles.length <= 1) { showToast('至少保留一个角色段', 'error'); return; }
+        sub.roles.splice(ri, 1);
+        renderAll();
+      });
+    });
+
+    card.querySelector('.add-role-btn').addEventListener('click', () => {
+      sub.roles.push({ gender: 'male', text: '' });
+      renderAll();
+    });
+
+    card.querySelector('.sub-del').addEventListener('click', () => {
+      const idx = sec.subs.findIndex(s => s.id === sub.id);
+      if (idx !== -1) { sec.subs.splice(idx, 1); renderAll(); }
+    });
+
+    return card;
+  }
+
+  function escHtml(s) {
+    return (s || '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  }
+  function escAttr(s) { return escHtml(s).replace(/'/g, '&#39;'); }
+
+  // ---------- 校验 ----------
+  function validateAll() {
+    if (sections.length === 0) { showToast('请先添加大题', 'error'); return false; }
+    for (let si = 0; si < sections.length; si++) {
+      const sec = sections[si];
+      if (sec.subs.length === 0) { showToast(`大题 ${si + 1} 没有小题`, 'error'); return false; }
+      for (let bi = 0; bi < sec.subs.length; bi++) {
+        const sub = sec.subs[bi];
+        const hasText = sub.roles.some(r => r.text && r.text.trim());
+        if (!hasText) { showToast(`大题 ${si + 1} 小题 ${bi + 1} 没有内容`, 'error'); return false; }
+      }
+    }
+    return true;
+  }
+
+  // ---------- 播放引擎 ----------
+  async function playAll() {
+    if (isPlaying) { showToast('正在播放中', 'error'); return; }
+    if (!validateAll()) return;
+
+    // 确保提示音已预加载
+    preloadCustomMusic();
+
+    const maleVoice = voiceMaleSelect.value;
+    const femaleVoice = voiceFemaleSelect.value;
+    const rate = parseFloat(globalRateInput.value) || 1;
+
+    isPlaying = true;
+    const token = ++playbackToken;
+    playAllBtn.disabled = true;
+    stopBtn.disabled = false;
+    setStatus('🔊 播放中…', true);
+
+    try {
+      // 1. 开头播放两遍自定义提示音
+      setStatus('🎵 提示音 (1/2)…', true);
+      await playCustomMusic(2, token);
+      await wait(600, token);
+
+      // 2. 遍历大题
+      for (let si = 0; si < sections.length; si++) {
+        if (playbackToken !== token) throw new Error('interrupted');
+        const sec = sections[si];
+
+        setStatus(`🔔 大题 ${si + 1} · 准备…`, true);
+        await playBeep(0.12, 1000, 0.35);
+        await wait(400, token);
+
+        if (sec.title.trim()) {
+          setStatus(`🎤 大题 ${si + 1} · 朗读标题…`, true);
+          await speakText(sec.title, { voiceName: femaleVoice, rate, token });
+          await wait(400, token);
+        }
+        if (sec.prompt.trim()) {
+          setStatus(`📢 大题 ${si + 1} · 朗读题干…`, true);
+          await speakText(sec.prompt, { voiceName: femaleVoice, rate, token });
+          await wait(600, token);
+        }
+
+        for (let bi = 0; bi < sec.subs.length; bi++) {
+          if (playbackToken !== token) throw new Error('interrupted');
+          const sub = sec.subs[bi];
+
+          await playBeep(0.12, 1000, 0.35);
+          await wait(300, token);
+
+          if (sub.title.trim()) {
+            setStatus(`🎤 大题 ${si + 1} 小题 ${bi + 1} · 标题…`, true);
+            await speakText(sub.title, { voiceName: femaleVoice, rate, token });
+            await wait(400, token);
+          }
+
+          for (let r = 0; r < sec.repeat; r++) {
+            if (playbackToken !== token) throw new Error('interrupted');
+            setStatus(`🎤 大题 ${si + 1} 小题 ${bi + 1} · 第 ${r + 1}/${sec.repeat} 遍…`, true);
+
+            for (let ri = 0; ri < sub.roles.length; ri++) {
+              if (playbackToken !== token) throw new Error('interrupted');
+              const role = sub.roles[ri];
+              if (!role.text || !role.text.trim()) continue;
+              const voiceName = role.gender === 'male' ? maleVoice : femaleVoice;
+              await speakText(role.text, { voiceName, rate, token });
+              if (ri < sub.roles.length - 1) await wait(350, token);
+            }
+
+            if (r < sec.repeat - 1) await wait(800, token);
+          }
+
+          if (sec.waitAfter > 0) {
+            setStatus(`⏳ 大题 ${si + 1} 小题 ${bi + 1} · 等待 ${sec.waitAfter}s…`, true);
+            await wait(sec.waitAfter * 1000, token);
+          }
+        }
+      }
+
+      // 3. 结尾再播放一遍自定义提示音
+      setStatus('🎵 结尾音乐…', true);
+      await playCustomMusic(1, token);
+
+      if (playbackToken === token) {
+        setStatus('✅ 全部播放完成', false);
+        showToast('听力播放完成', 'success');
+      }
+      return true;
+    } catch (err) {
+      if (err.message === 'interrupted') {
+        setStatus('⏹ 已停止', false);
+      } else {
+        console.error(err);
+        setStatus('⚠️ 播放出错', false);
+        showToast('播放出错: ' + err.message, 'error');
+      }
+      return false;
+    } finally {
+      if (playbackToken === token) {
+        isPlaying = false;
+        playAllBtn.disabled = false;
+        stopBtn.disabled = true;
+        currentUtterance = null;
+      }
+    }
+  }
+
+  function stopPlayback() {
+    playbackToken++;
+    if (synth.speaking || synth.pending) synth.cancel();
+    stopCustomAudio();
+    isPlaying = false;
+    playAllBtn.disabled = false;
+    stopBtn.disabled = true;
+    setStatus('⏹ 已停止', false);
+  }
+
+  // ---------- MP3 转换 ----------
+  async function convertWebmToMp3(webmBlob) {
+    if (mp3Converting) return null;
+    mp3Converting = true;
+    setStatus('🔄 正在转码 MP3…', true);
+    downloadMp3.style.display = 'none';
+
+    try {
+      const arrayBuffer = await webmBlob.arrayBuffer();
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+      await audioCtx.close();
+
+      const channelData = audioBuffer.getChannelData(0);
+      const sampleRate = audioBuffer.sampleRate;
+      const pcm16 = new Int16Array(channelData.length);
+      for (let i = 0; i < channelData.length; i++) {
+        const s = Math.max(-1, Math.min(1, channelData[i]));
+        pcm16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+      }
+
+      const encoder = new lamejs.Mp3Encoder(1, sampleRate, 128);
+      const chunks = [];
+      const chunkSize = 1152;
+      for (let i = 0; i < pcm16.length; i += chunkSize) {
+        const chunk = pcm16.subarray(i, i + chunkSize);
+        const buf = encoder.encodeBuffer(chunk);
+        if (buf.length > 0) chunks.push(new Uint8Array(buf));
+      }
+      const end = encoder.flush();
+      if (end.length > 0) chunks.push(new Uint8Array(end));
+
+      mp3Converting = false;
+      return new Blob(chunks, { type: 'audio/mpeg' });
+    } catch (err) {
+      console.error('[MP3] 失败:', err);
+      mp3Converting = false;
+      showToast('MP3 转码失败：' + (err.message || '未知错误'), 'error');
+      setStatus('⚠️ MP3 转码失败', false);
+      return null;
+    }
+  }
+
+  // ---------- 录制 ----------
+  function pickMimeType() {
+    const list = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus'];
+    for (const m of list) {
+      if (window.MediaRecorder && MediaRecorder.isTypeSupported(m)) return m;
+    }
+    return '';
+  }
+
+  function cleanupRecording() {
+    if (recordStream) { recordStream.getTracks().forEach(t => t.stop()); recordStream = null; }
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') { try { mediaRecorder.stop(); } catch (_) {} }
+    mediaRecorder = null;
+    isRecording = false;
+    recordBtn.classList.remove('recording');
+    recordBtn.style.display = '';
+    stopRecordBtn.style.display = 'none';
+  }
+
+  async function startRecordingAndPlay() {
+    if (!synth) { showToast('不支持语音合成', 'error'); return; }
+    if (isRecording || mp3Converting) { showToast('正在处理中，请稍候', 'error'); return; }
+    if (isPlaying) { showToast('正在播放中，请先停止', 'error'); return; }
+    if (!validateAll()) return;
+
+    let displayStream;
+    try {
+      displayStream = await navigator.mediaDevices.getDisplayMedia({
+        video: true,
+        audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
+      });
+    } catch (err) {
+      showToast(err.name === 'NotAllowedError' ? '你取消了分享' : '获取共享流失败', 'error');
+      return;
+    }
+
+    const audioTracks = displayStream.getAudioTracks();
+    if (audioTracks.length === 0) {
+      displayStream.getTracks().forEach(t => t.stop());
+      showToast('未检测到音频！请重试并勾选“分享系统音频”', 'error');
+      return;
+    }
+
+    displayStream.getVideoTracks().forEach(t => t.stop());
+    recordStream = new MediaStream(audioTracks);
+
+    const mimeType = pickMimeType();
+    if (!mimeType) { cleanupRecording(); showToast('不支持 MediaRecorder 音频录制', 'error'); return; }
+
+    recordedChunks = [];
+    try { mediaRecorder = new MediaRecorder(recordStream, { mimeType }); }
+    catch (e) { cleanupRecording(); showToast('创建录制器失败: ' + e.message, 'error'); return; }
+
+    mediaRecorder.ondataavailable = (e) => { if (e.data && e.data.size > 0) recordedChunks.push(e.data); };
+
+    mediaRecorder.onstop = async () => {
+      const duration = ((performance.now() - recordStartTime) / 1000).toFixed(1);
+      if (!recordedChunks.length) {
+        showToast('没有录到音频数据', 'error');
+        setStatus('⚠️ 录音为空', false);
+        cleanupRecording();
+        return;
+      }
+
+      const webmBlob = new Blob(recordedChunks, { type: mimeType.split(';')[0] });
+      const webmUrl = URL.createObjectURL(webmBlob);
+      downloadWebm.href = webmUrl;
+      downloadWebm.download = `listening-${Date.now()}.webm`;
+
+      downloadArea.classList.add('show');
+      fileInfo.textContent = `WebM · ${(webmBlob.size/1024).toFixed(1)} KB · 约 ${duration}s · MP3 转换中…`;
+
+      const mp3Blob = await convertWebmToMp3(webmBlob);
+      if (mp3Blob) {
+        const mp3Url = URL.createObjectURL(mp3Blob);
+        downloadMp3.href = mp3Url;
+        downloadMp3.download = `listening-${Date.now()}.mp3`;
+        downloadMp3.style.display = '';
+        fileInfo.textContent = `WebM ${(webmBlob.size/1024).toFixed(1)} KB · MP3 ${(mp3Blob.size/1024).toFixed(1)} KB · 约 ${duration}s`;
+        showToast('MP3 转换完成，可下载', 'success');
+        setStatus('✅ 录制与转码完成', false);
+      } else {
+        fileInfo.textContent = `WebM · ${(webmBlob.size/1024).toFixed(1)} KB · 约 ${duration}s · MP3 转码失败`;
+        setStatus('⚠️ MP3 转码失败，WebM 可用', false);
+      }
+
+      cleanupRecording();
+    };
+
+    mediaRecorder.onerror = (e) => {
+      showToast('录制出错: ' + (e.error?.message || '未知'), 'error');
+      cleanupRecording();
+    };
+
+    downloadArea.classList.remove('show');
+    downloadMp3.style.display = 'none';
+    isRecording = true;
+    recordBtn.classList.add('recording');
+    recordBtn.style.display = 'none';
+    stopRecordBtn.style.display = '';
+    recordStartTime = performance.now();
+
+    try { mediaRecorder.start(200); }
+    catch (e) { cleanupRecording(); showToast('无法开始录制: ' + e.message, 'error'); return; }
+
+    setStatus('🔴 正在录制…', false, true);
+
+    setTimeout(async () => {
+      if (!isRecording) return;
+      try {
+        await playAll();
+      } catch (e) {
+        console.error('[录制播放] 出错:', e);
+      } finally {
+        setTimeout(() => {
+          if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+            try { mediaRecorder.stop(); } catch (_) {}
+          }
+        }, 500);
+      }
+    }, 600);
+  }
+
+  function stopRecordingManually() {
+    if (!isRecording) return;
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+      try { mediaRecorder.stop(); } catch (_) {}
+    }
+    stopPlayback();
+    setStatus('⏹ 录制已手动停止', false);
+    setTimeout(() => { if (isRecording) cleanupRecording(); }, 500);
+  }
+
+  // ---------- 事件绑定 ----------
+  addSectionBtn.addEventListener('click', () => {
+    sections.push(createSection({ subs: [createSub()] }));
+    renderAll();
+  });
+
+  addPresetBtn.addEventListener('click', () => {
+    const preset = createSection({
+      title: 'Part A · Short Conversations',
+      prompt: 'Listen to the following conversations and choose the best answer.',
+      repeat: 2,
+      waitAfter: 3,
+      subs: [
+        createSub({
+          title: 'Question 1',
+          roles: [
+            { gender: 'male', text: 'Excuse me, could you tell me where the nearest bank is?' },
+            { gender: 'female', text: 'Sure. Go straight ahead and turn left at the second traffic light.' }
+          ]
+        }),
+        createSub({
+          title: 'Question 2',
+          roles: [
+            { gender: 'female', text: 'What time does the meeting start?' },
+            { gender: 'male', text: 'It starts at nine thirty in the morning.' }
+          ]
+        })
+      ]
+    });
+    sections.push(preset);
+    renderAll();
+    showToast('已添加示例听力', 'success');
+  });
+
+  playAllBtn.addEventListener('click', playAll);
+  stopBtn.addEventListener('click', stopPlayback);
+  recordBtn.addEventListener('click', startRecordingAndPlay);
+  stopRecordBtn.addEventListener('click', stopRecordingManually);
+
+  window.addEventListener('beforeunload', () => {
+    if (synth.speaking) synth.cancel();
+    if (audioCtx) audioCtx.close();
+    stopCustomAudio();
+    cleanupRecording();
+  });
+
+  // 初始化
+  preloadCustomMusic();
+  renderAll();
+  setStatus('就绪', false);
+
+  if (!navigator.mediaDevices?.getDisplayMedia) {
+    recordBtn.disabled = true;
+    showToast('当前环境不支持屏幕音频捕获', 'error');
+  }
+})();
+</script>
+</body>
+</html>
