@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Edge TTS · 音色选择 + MP3 导出</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI','Microsoft YaHei',system-ui,sans-serif; background: linear-gradient(135deg,#eef4ff,#f7f9fc); min-height:100vh; display:flex; align-items:center; justify-content:center; padding:1.5rem; color:#1e293b; }
+  .card { max-width:940px; width:100%; background:#fff; border-radius:2rem; box-shadow:0 25px 60px -20px rgba(30,41,59,.25); padding:2rem; border:1px solid #e6edf6; }
+  h1 { font-size:1.7rem; font-weight:650; display:flex; align-items:center; gap:.6rem; margin-bottom:1.2rem; padding-bottom:.9rem; border-bottom:1px solid #e9eff7; }
+  h1 .badge { background:#3b82f6; color:#fff; font-size:.78rem; font-weight:500; padding:.2rem .7rem; border-radius:100px; }
+  label { font-weight:500; font-size:.95rem; color:#334155; display:block; margin-bottom:.5rem; }
+  textarea { width:100%; padding:1.1rem 1.3rem; font-size:1.02rem; line-height:1.7; border-radius:1.3rem; border:2px solid #e2e8f0; resize:vertical; min-height:160px; font-family:inherit; color:#0f172a; }
+  textarea:focus { outline:none; border-color:#3b82f6; box-shadow:0 0 0 4px rgba(59,130,246,.13); }
+  .section { margin-bottom:1.4rem; }
+  .controls { display:flex; flex-wrap:wrap; align-items:flex-end; gap:1.2rem; background:#f8fafd; padding:1.1rem 1.4rem; border-radius:2.5rem; border:1px solid #e9eff7; margin-bottom:1.4rem; }
+  .control-group { flex:1 1 200px; min-width:180px; }
+  .control-group label { margin-bottom:.35rem; font-size:.9rem; }
+  .rate-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:.4rem; }
+  .rate-header label { margin:0; }
+  .rate-value { background:#fff; padding:.2rem .8rem; border-radius:40px; font-size:.85rem; font-weight:600; color:#2563eb; border:1px solid #dbeafe; }
+  input[type=range] { width:100%; height:6px; -webkit-appearance:none; border-radius:10px; outline:none; margin:.5rem 0 .2rem; background:linear-gradient(90deg,#3b82f6 0%,#3b82f6 var(--fill,33%),#cbd5e1 var(--fill,33%),#cbd5e1 100%); }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:22px; height:22px; background:#fff; border-radius:50%; box-shadow:0 3px 10px rgba(0,0,0,.15),0 0 0 2px #3b82f6; cursor:pointer; }
+  select { width:100%; padding:.65rem 1rem; border-radius:1rem; border:2px solid #e2e8f0; background:#fff; font-size:.92rem; font-family:inherit; color:#0f172a; cursor:pointer; transition:.15s; }
+  select:focus { outline:none; border-color:#3b82f6; box-shadow:0 0 0 4px rgba(59,130,246,.12); }
+  .btn { border:none; padding:.82rem 1.7rem; border-radius:60px; font-weight:600; font-size:.96rem; display:inline-flex; align-items:center; justify-content:center; gap:.5rem; cursor:pointer; transition:.15s; font-family:inherit; white-space:nowrap; }
+  .btn:active { transform:scale(.97); }
+  .btn:disabled { opacity:.45; cursor:not-allowed; }
+  .btn-primary { background:#3b82f6; color:#fff; box-shadow:0 8px 18px -8px rgba(59,130,246,.55); }
+  .btn-primary:hover:not(:disabled) { background:#2563eb; }
+  .btn-secondary { background:#fff; color:#1e293b; border:1px solid #cbd5e1; }
+  .btn-secondary:hover:not(:disabled) { background:#f1f5f9; }
+  .btn-danger { background:#fee2e2; color:#b91c1c; border:1px solid #fecaca; }
+  .btn-danger:hover:not(:disabled) { background:#fecaca; }
+  .btn-record { background:#dc2626; color:#fff; box-shadow:0 8px 18px -8px rgba(220,38,38,.5); }
+  .btn-record:hover:not(:disabled) { background:#b91c1c; }
+  .btn-record.recording { background:#991b1b; animation:pulseRec 1.4s infinite; }
+  @keyframes pulseRec { 0%,100%{box-shadow:0 0 0 0 rgba(220,38,38,.5);} 50%{box-shadow:0 0 0 8px rgba(220,38,38,0);} }
+  .btn-row { display:flex; flex-wrap:wrap; gap:.8rem; align-items:center; }
+  .status { margin-left:auto; font-size:.88rem; color:#475569; background:#eef2f7; padding:.45rem 1.1rem; border-radius:40px; display:flex; align-items:center; gap:.5rem; white-space:nowrap; }
+  .dot { width:8px; height:8px; border-radius:50%; background:#94a3b8; }
+  .dot.active { background:#22c55e; box-shadow:0 0 8px #22c55e; animation:pulseDot 1.4s infinite; }
+  .dot.rec { background:#ef4444; box-shadow:0 0 8px #ef4444; animation:pulseDot 1s infinite; }
+  @keyframes pulseDot { 0%,100%{opacity:1;} 50%{opacity:.4;} }
+  .rec-panel { background:#fff7ed; border:1px solid #fed7aa; border-radius:1.4rem; padding:1.2rem 1.4rem; margin-bottom:1.4rem; }
+  .rec-panel h3 { font-size:1rem; font-weight:650; color:#9a3412; margin-bottom:.6rem; }
+  .rec-panel ol { margin:0 0 .9rem 1.2rem; color:#7c2d12; font-size:.9rem; line-height:1.9; }
+  .rec-panel ol strong { color:#c2410c; }
+  .rec-panel .hint { font-size:.85rem; color:#9a3412; background:#ffedd5; padding:.6rem .9rem; border-radius:.9rem; line-height:1.6; }
+  .download-area { margin-top:.8rem; display:none; }
+  .download-area.show { display:block; }
+  .download-row { display:flex; flex-wrap:wrap; gap:.8rem; margin-top:.6rem; }
+  .download-link { display:inline-flex; align-items:center; gap:.5rem; background:#ecfdf5; color:#047857; border:1px solid #a7f3d0; padding:.7rem 1.3rem; border-radius:60px; font-weight:600; font-size:.92rem; text-decoration:none; transition:.15s; }
+  .download-link:hover { background:#d1fae5; }
+  .download-link.mp3 { background:#eff6ff; color:#1d4ed8; border-color:#bfdbfe; }
+  .download-link.mp3:hover { background:#dbeafe; }
+  .file-info { font-size:.82rem; color:#64748b; margin-top:.5rem; }
+  .footer-note { font-size:.8rem; color:#94a3b8; margin-top:1.4rem; text-align:center; border-top:1px solid #eef2f7; padding-top:1.1rem; display:flex; justify-content:center; gap:1.4rem; flex-wrap:wrap; }
+  .toast { position:fixed; bottom:2rem; left:50%; transform:translateX(-50%) translateY(120%); background:#1e293b; color:#fff; padding:.8rem 1.6rem; border-radius:60px; font-size:.9rem; box-shadow:0 12px 30px rgba(0,0,0,.25); transition:transform .3s cubic-bezier(.2,.9,.3,1.2); z-index:999; max-width:90vw; text-align:center; }
+  .toast.show { transform:translateX(-50%) translateY(0); }
+  .toast.error { background:#b91c1c; }
+  .toast.success { background:#047857; }
+  @media (max-width:680px){ .card{padding:1.3rem;} h1{font-size:1.35rem;} .controls{flex-direction:column;align-items:stretch;} .btn{flex:1 1 auto;} .status{margin-left:0;justify-content:center;} }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>🎙️ Edge TTS <span class="badge">音色选择 · MP3 导出</span></h1>
+
+  <div class="section">
+    <label for="textInput">📄 输入文本</label>
+    <textarea id="textInput">欢迎使用语音合成。这是微软 Edge 浏览器的内置语音引擎。
+
+你可以切换音色、调节语速。标点符号会自动处理为停顿。
+
+录音结束后会自动转换为 MP3，请稍候。</textarea>
+  </div>
+
+  <div class="controls">
+    <div class="control-group">
+      <label for="voiceSelect">🎭 音色</label>
+      <select id="voiceSelect">
+        <option value="">加载中…</option>
+      </select>
+    </div>
+    <div class="control-group" style="flex:1.6;">
+      <div class="rate-header">
+        <label for="rateSlider">⚡ 语速</label>
+        <span class="rate-value" id="rateValue">1.0x</span>
+      </div>
+      <input type="range" id="rateSlider" min="0.5" max="2.0" value="1.0" step="0.1">
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" id="speakBtn">▶ 朗读</button>
+      <button class="btn btn-secondary" id="pauseBtn" style="display:none;">⏸ 暂停</button>
+      <button class="btn btn-danger" id="cancelBtn">⏹ 停止</button>
+    </div>
+  </div>
+
+  <div class="status" id="statusIndicator" style="margin-left:0; margin-bottom:1.2rem; width:fit-content;">
+    <span class="dot" id="statusDot"></span>
+    <span id="statusText">就绪</span>
+  </div>
+
+  <div class="rec-panel">
+    <h3>🎧 录制导出（自动转 MP3）</h3>
+    <ol>
+      <li>点击 <strong>“开始录制并朗读”</strong>。</li>
+      <li>共享弹窗中选 <strong>“整个屏幕”</strong>。</li>
+      <li><strong>务必勾选“分享系统音频”</strong>。</li>
+      <li>朗读结束后自动停止录制，并转换 MP3。</li>
+    </ol>
+    <div class="hint">转换在浏览器本地完成，不上传任何音频。MP3 生成后会出现下载链接。</div>
+    <div class="btn-row" style="margin-top:1rem;">
+      <button class="btn btn-record" id="recordBtn">⏺ 开始录制并朗读</button>
+      <button class="btn btn-secondary" id="stopRecordBtn" style="display:none;">⏹ 停止录制</button>
+    </div>
+    <div class="download-area" id="downloadArea">
+      <div class="file-info" id="fileInfo"></div>
+      <div class="download-row">
+        <a class="download-link" id="downloadWebm" download="tts-recording.webm">⬇ 下载 WebM 原文件</a>
+        <a class="download-link mp3" id="downloadMp3" download="tts-recording.mp3">⬇ 下载 MP3</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer-note">
+    <span>🗣️ Edge 内置语音</span>
+    <span>🎭 音色可切换</span>
+    <span>🎵 本地转码 MP3</span>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/lamejs@1.2.1/lame.min.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  const textInput = document.getElementById('textInput');
+  const voiceSelect = document.getElementById('voiceSelect');
+  const rateSlider = document.getElementById('rateSlider');
+  const rateValue = document.getElementById('rateValue');
+  const speakBtn = document.getElementById('speakBtn');
+  const pauseBtn = document.getElementById('pauseBtn');
+  const cancelBtn = document.getElementById('cancelBtn');
+  const recordBtn = document.getElementById('recordBtn');
+  const stopRecordBtn = document.getElementById('stopRecordBtn');
+  const downloadArea = document.getElementById('downloadArea');
+  const downloadWebm = document.getElementById('downloadWebm');
+  const downloadMp3 = document.getElementById('downloadMp3');
+  const fileInfo = document.getElementById('fileInfo');
+  const statusDot = document.getElementById('statusDot');
+  const statusText = document.getElementById('statusText');
+  const toastEl = document.getElementById('toast');
+
+  const synth = window.speechSynthesis;
+  let voices = [];
+  let selectedVoice = null;
+  let currentUtterance = null;
+  let isPaused = false;
+
+  let mediaRecorder = null, recordedChunks = [], recordStream = null;
+  let isRecording = false, recordStartTime = 0;
+  let mp3Converting = false;
+
+  // ---------- Toast ----------
+  let toastTimer = null;
+  function showToast(msg, type = '') {
+    clearTimeout(toastTimer);
+    toastEl.textContent = msg;
+    toastEl.className = 'toast show ' + type;
+    toastTimer = setTimeout(() => toastEl.classList.remove('show'), 3200);
+  }
+
+  function setStatus(text, mode = 'idle') {
+    statusText.textContent = text;
+    statusDot.className = 'dot';
+    if (mode === 'speaking' || mode === 'ready') statusDot.classList.add('active');
+    if (mode === 'recording') statusDot.classList.add('rec');
+  }
+
+  // ---------- 音色加载与下拉填充 ----------
+  function populateVoiceSelect() {
+    voices = synth.getVoices();
+    if (!voices.length) {
+      voiceSelect.innerHTML = '<option value="">未检测到语音</option>';
+      return;
+    }
+
+    // 排序：中文优先，然后按名称
+    const sorted = [...voices].sort((a, b) => {
+      const aZh = a.lang && a.lang.toLowerCase().startsWith('zh') ? 0 : 1;
+      const bZh = b.lang && b.lang.toLowerCase().startsWith('zh') ? 0 : 1;
+      if (aZh !== bZh) return aZh - bZh;
+      return a.name.localeCompare(b.name);
+    });
+
+    voiceSelect.innerHTML = '';
+    sorted.forEach((v, idx) => {
+      const opt = document.createElement('option');
+      opt.value = v.name;
+      // 显示名称 + 语言，中文加标记
+      const langLabel = v.lang || '';
+      const star = /Natural|Online/i.test(v.name) ? ' ⭐' : '';
+      opt.textContent = `${v.name} (${langLabel})${star}`;
+      voiceSelect.appendChild(opt);
+    });
+
+    // 默认选择：优先中文自然语音
+    let defaultVoice = sorted.find(v =>
+      v.lang && v.lang.toLowerCase().startsWith('zh') && /Natural|Online|Xiaoxiao|Yunxi/i.test(v.name)
+    );
+    if (!defaultVoice) defaultVoice = sorted.find(v => v.lang && v.lang.toLowerCase().startsWith('zh'));
+    if (!defaultVoice) defaultVoice = sorted.find(v => /Natural|Online/i.test(v.name));
+    if (!defaultVoice) defaultVoice = sorted[0];
+
+    selectedVoice = defaultVoice;
+    voiceSelect.value = defaultVoice.name;
+    console.log('[TTS] 默认音色:', defaultVoice.name, defaultVoice.lang);
+  }
+
+  function handleVoiceChange() {
+    const name = voiceSelect.value;
+    selectedVoice = voices.find(v => v.name === name) || null;
+    if (selectedVoice) {
+      console.log('[TTS] 切换音色:', selectedVoice.name, selectedVoice.lang);
+      // 如果正在朗读，提示下次生效（不打断当前朗读）
+      if (synth.speaking) {
+        showToast('音色已切换，下次朗读生效', '');
+      }
+    }
+  }
+
+  if (synth) {
+    // 立即尝试，再监听变化（Edge 需要异步加载）
+    populateVoiceSelect();
+    synth.onvoiceschanged = () => {
+      populateVoiceSelect();
+    };
+    // 兜底延迟
+    setTimeout(() => {
+      if (voiceSelect.options.length <= 1) populateVoiceSelect();
+    }, 500);
+    setTimeout(() => {
+      if (voiceSelect.options.length <= 1) populateVoiceSelect();
+    }, 1500);
+  } else {
+    setStatus('❌ 不支持语音合成');
+    speakBtn.disabled = recordBtn.disabled = cancelBtn.disabled = true;
+    voiceSelect.innerHTML = '<option value="">不支持</option>';
+  }
+
+  voiceSelect.addEventListener('change', handleVoiceChange);
+
+  // ---------- 语速 ----------
+  function updateRateUI() {
+    const v = parseFloat(rateSlider.value);
+    rateValue.textContent = v.toFixed(1) + 'x';
+    rateSlider.style.setProperty('--fill', ((v - 0.5) / 1.5) * 100 + '%');
+  }
+  rateSlider.addEventListener('input', updateRateUI);
+  updateRateUI();
+
+  // ---------- Utterance 构建（使用下拉选中的音色） ----------
+  function buildUtterance(text, callbacks = {}) {
+    const u = new SpeechSynthesisUtterance(text);
+    u.rate = parseFloat(rateSlider.value);
+    u.pitch = 1;
+    u.volume = 1;
+
+    // 优先使用用户下拉选择的音色
+    let voiceToUse = selectedVoice;
+    if (!voiceToUse && voices.length) {
+      // 回退：中文自然语音
+      voiceToUse = voices.find(v => v.lang && v.lang.toLowerCase().startsWith('zh')) || voices[0];
+    }
+    if (voiceToUse) {
+      u.voice = voiceToUse;
+      u.lang = voiceToUse.lang;
+    }
+
+    u.onstart = () => setStatus('🔊 正在朗读…', 'speaking');
+    u.onend = () => {
+      setStatus('✅ 朗读完成');
+      resetPlayButtons();
+      currentUtterance = null;
+      callbacks.onEnd?.();
+    };
+    u.onerror = (e) => {
+      if (e.error === 'interrupted' || e.error === 'canceled') return;
+      setStatus('⚠️ 朗读出错: ' + e.error);
+      resetPlayButtons();
+      currentUtterance = null;
+      callbacks.onError?.(e);
+    };
+    return u;
+  }
+
+  function resetPlayButtons() {
+    speakBtn.style.display = '';
+    pauseBtn.style.display = 'none';
+    pauseBtn.textContent = '⏸ 暂停';
+    isPaused = false;
+  }
+
+  function speak() {
+    if (!synth) return;
+    if (synth.speaking) synth.cancel();
+    resetPlayButtons();
+    const text = textInput.value.trim();
+    if (!text) { showToast('请输入文本', 'error'); return; }
+    const u = buildUtterance(text);
+    currentUtterance = u;
+    synth.speak(u);
+    speakBtn.style.display = 'none';
+    pauseBtn.style.display = '';
+    setStatus('⏳ 准备中…', 'speaking');
+  }
+
+  function togglePause() {
+    if (!synth.speaking) { resetPlayButtons(); return; }
+    if (synth.paused) {
+      synth.resume(); isPaused = false;
+      pauseBtn.textContent = '⏸ 暂停';
+      setStatus('🔊 正在朗读…', 'speaking');
+    } else {
+      synth.pause(); isPaused = true;
+      pauseBtn.textContent = '▶ 继续';
+      setStatus('⏸ 已暂停', 'speaking');
+    }
+  }
+
+  function stopSpeaking() {
+    if (synth && (synth.speaking || synth.pending)) synth.cancel();
+    resetPlayButtons();
+    setStatus('⏹ 已停止');
+    currentUtterance = null;
+  }
+
+  speakBtn.addEventListener('click', speak);
+  pauseBtn.addEventListener('click', togglePause);
+  cancelBtn.addEventListener('click', stopSpeaking);
+
+  // ---------- MP3 转换 ----------
+  async function convertWebmToMp3(webmBlob) {
+    if (mp3Converting) return null;
+    mp3Converting = true;
+    setStatus('🔄 正在转码 MP3…', 'speaking');
+    downloadMp3.style.display = 'none';
+
+    try {
+      const arrayBuffer = await webmBlob.arrayBuffer();
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+      await audioCtx.close();
+
+      const channelData = audioBuffer.getChannelData(0);
+      const sampleRate = audioBuffer.sampleRate;
+      const pcm16 = new Int16Array(channelData.length);
+      for (let i = 0; i < channelData.length; i++) {
+        const s = Math.max(-1, Math.min(1, channelData[i]));
+        pcm16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+      }
+
+      const encoder = new lamejs.Mp3Encoder(1, sampleRate, 128);
+      const chunks = [];
+      const chunkSize = 1152;
+      for (let i = 0; i < pcm16.length; i += chunkSize) {
+        const chunk = pcm16.subarray(i, i + chunkSize);
+        const buf = encoder.encodeBuffer(chunk);
+        if (buf.length > 0) chunks.push(new Uint8Array(buf));
+      }
+      const end = encoder.flush();
+      if (end.length > 0) chunks.push(new Uint8Array(end));
+
+      mp3Converting = false;
+      return new Blob(chunks, { type: 'audio/mpeg' });
+    } catch (err) {
+      console.error('[MP3] 失败:', err);
+      mp3Converting = false;
+      showToast('MP3 转码失败：' + (err.message || '未知错误'), 'error');
+      setStatus('⚠️ MP3 转码失败');
+      return null;
+    }
+  }
+
+  // ---------- 录制 ----------
+  function pickMimeType() {
+    const list = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus'];
+    for (const m of list) {
+      if (window.MediaRecorder && MediaRecorder.isTypeSupported(m)) return m;
+    }
+    return '';
+  }
+
+  function cleanupRecording() {
+    if (recordStream) { recordStream.getTracks().forEach(t => t.stop()); recordStream = null; }
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') { try { mediaRecorder.stop(); } catch (_) {} }
+    mediaRecorder = null;
+    isRecording = false;
+    recordBtn.classList.remove('recording');
+    recordBtn.style.display = '';
+    stopRecordBtn.style.display = 'none';
+  }
+
+  async function startRecordingAndSpeak() {
+    if (!synth) { showToast('不支持语音合成', 'error'); return; }
+    if (isRecording || mp3Converting) { showToast('正在处理中，请稍候', 'error'); return; }
+
+    const text = textInput.value.trim();
+    if (!text) { showToast('请先输入文本', 'error'); return; }
+
+    if (synth.speaking) synth.cancel();
+    resetPlayButtons();
+
+    let displayStream;
+    try {
+      displayStream = await navigator.mediaDevices.getDisplayMedia({
+        video: true,
+        audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
+      });
+    } catch (err) {
+      showToast(err.name === 'NotAllowedError' ? '你取消了分享' : '获取共享流失败', 'error');
+      setStatus('❌ 录制未开始');
+      return;
+    }
+
+    const audioTracks = displayStream.getAudioTracks();
+    if (audioTracks.length === 0) {
+      displayStream.getTracks().forEach(t => t.stop());
+      showToast('未检测到音频！请重试并勾选“分享系统音频”', 'error');
+      setStatus('⚠️ 未勾选系统音频');
+      return;
+    }
+
+    displayStream.getVideoTracks().forEach(t => t.stop());
+    recordStream = new MediaStream(audioTracks);
+
+    const mimeType = pickMimeType();
+    if (!mimeType) { cleanupRecording(); showToast('不支持 MediaRecorder 音频录制', 'error'); return; }
+
+    recordedChunks = [];
+    try { mediaRecorder = new MediaRecorder(recordStream, { mimeType }); }
+    catch (e) { cleanupRecording(); showToast('创建录制器失败: ' + e.message, 'error'); return; }
+
+    mediaRecorder.ondataavailable = (e) => { if (e.data && e.data.size > 0) recordedChunks.push(e.data); };
+
+    mediaRecorder.onstop = async () => {
+      const duration = ((performance.now() - recordStartTime) / 1000).toFixed(1);
+      if (!recordedChunks.length) {
+        showToast('没有录到音频数据', 'error');
+        setStatus('⚠️ 录音为空');
+        cleanupRecording();
+        return;
+      }
+
+      const webmBlob = new Blob(recordedChunks, { type: mimeType.split(';')[0] });
+      const webmUrl = URL.createObjectURL(webmBlob);
+      downloadWebm.href = webmUrl;
+      downloadWebm.download = `tts-${Date.now()}.webm`;
+
+      downloadArea.classList.add('show');
+      fileInfo.textContent = `WebM · ${(webmBlob.size/1024).toFixed(1)} KB · 约 ${duration}s · MP3 转换中…`;
+
+      const mp3Blob = await convertWebmToMp3(webmBlob);
+      if (mp3Blob) {
+        const mp3Url = URL.createObjectURL(mp3Blob);
+        downloadMp3.href = mp3Url;
+        downloadMp3.download = `tts-${Date.now()}.mp3`;
+        downloadMp3.style.display = '';
+        fileInfo.textContent = `WebM ${(webmBlob.size/1024).toFixed(1)} KB · MP3 ${(mp3Blob.size/1024).toFixed(1)} KB · 约 ${duration}s`;
+        showToast('MP3 转换完成，可下载', 'success');
+        setStatus('✅ 录制与转码完成');
+      } else {
+        fileInfo.textContent = `WebM · ${(webmBlob.size/1024).toFixed(1)} KB · 约 ${duration}s · MP3 转码失败`;
+        setStatus('⚠️ MP3 转码失败，WebM 可用');
+      }
+
+      cleanupRecording();
+    };
+
+    mediaRecorder.onerror = (e) => {
+      showToast('录制出错: ' + (e.error?.message || '未知'), 'error');
+      cleanupRecording();
+    };
+
+    downloadArea.classList.remove('show');
+    downloadMp3.style.display = 'none';
+    isRecording = true;
+    recordBtn.classList.add('recording');
+    recordBtn.style.display = 'none';
+    stopRecordBtn.style.display = '';
+    recordStartTime = performance.now();
+
+    try { mediaRecorder.start(200); }
+    catch (e) { cleanupRecording(); showToast('无法开始录制: ' + e.message, 'error'); return; }
+
+    setStatus('🔴 正在录制…', 'recording');
+
+    // 延迟启动 TTS，确保录制流稳定
+    setTimeout(() => {
+      if (!isRecording) return;
+      const u = buildUtterance(text, {
+        onEnd: () => {
+          setTimeout(() => {
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+              try { mediaRecorder.stop(); } catch (_) {}
+            }
+          }, 400);
+        },
+        onError: () => {
+          setTimeout(() => {
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+              try { mediaRecorder.stop(); } catch (_) {}
+            }
+          }, 400);
+        }
+      });
+      currentUtterance = u;
+      synth.speak(u);
+    }, 600);
+  }
+
+  function stopRecordingManually() {
+    if (!isRecording) return;
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') { try { mediaRecorder.stop(); } catch (_) {} }
+    if (synth.speaking) synth.cancel();
+    resetPlayButtons();
+    setStatus('⏹ 手动停止');
+    setTimeout(() => { if (isRecording) cleanupRecording(); }, 500);
+  }
+
+  recordBtn.addEventListener('click', startRecordingAndSpeak);
+  stopRecordBtn.addEventListener('click', stopRecordingManually);
+
+  window.addEventListener('beforeunload', () => {
+    if (synth && synth.speaking) synth.cancel();
+    cleanupRecording();
+  });
+
+  setStatus('就绪');
+  if (!navigator.mediaDevices?.getDisplayMedia) {
+    recordBtn.disabled = true;
+    showToast('不支持屏幕音频捕获', 'error');
+  }
+})();
+</script>
+</body>
+</html>
